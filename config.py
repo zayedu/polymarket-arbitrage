@@ -1,0 +1,170 @@
+"""
+Configuration management for the Polymarket arbitrage system.
+Loads settings from environment variables with type validation.
+"""
+import os
+from decimal import Decimal
+from typing import Literal
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
+
+
+class Config(BaseSettings):
+    """Application configuration with type-safe environment variable loading."""
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore"
+    )
+    
+    # API Configuration
+    polymarket_private_key: str = Field(
+        default="",
+        description="Polygon private key for signing transactions"
+    )
+    polymarket_api_key: str = Field(
+        default="",
+        description="Optional Polymarket API key"
+    )
+    polygon_rpc_url: str = Field(
+        default="https://polygon-rpc.com",
+        description="Polygon RPC endpoint"
+    )
+    
+    # Database
+    database_url: str = Field(
+        default="sqlite+aiosqlite:///./arbitrage.db",
+        description="Database connection URL"
+    )
+    
+    # Arbitrage Thresholds
+    min_gross_edge: Decimal = Field(
+        default=Decimal("0.01"),
+        description="Minimum edge per dollar (0.01 = 1%)"
+    )
+    min_net_profit: Decimal = Field(
+        default=Decimal("0.10"),
+        description="Minimum net profit after costs"
+    )
+    min_liquidity: Decimal = Field(
+        default=Decimal("10.0"),
+        description="Minimum liquidity at top of book"
+    )
+    max_days_to_resolution: int = Field(
+        default=14,
+        description="Maximum days until market resolution"
+    )
+    min_apy: Decimal = Field(
+        default=Decimal("50"),
+        description="Minimum APY percentage"
+    )
+    
+    # Risk Management
+    max_trade_size: Decimal = Field(
+        default=Decimal("15.0"),
+        description="Maximum trade size in USD"
+    )
+    max_daily_loss: Decimal = Field(
+        default=Decimal("10.0"),
+        description="Maximum daily loss in USD"
+    )
+    max_open_exposure: Decimal = Field(
+        default=Decimal("50.0"),
+        description="Maximum total open exposure in USD"
+    )
+    
+    # Execution Settings
+    order_timeout_seconds: int = Field(
+        default=5,
+        description="Timeout for order execution"
+    )
+    partial_fill_unwind: bool = Field(
+        default=True,
+        description="Automatically unwind partial fills"
+    )
+    
+    # Operation
+    trading_mode: Literal["paper", "scan", "live"] = Field(
+        default="paper",
+        description="Trading mode"
+    )
+    poll_interval_seconds: int = Field(
+        default=3,
+        description="Market scanning interval"
+    )
+    log_level: str = Field(
+        default="INFO",
+        description="Logging level"
+    )
+    
+    # Gas Settings
+    max_gas_price_gwei: int = Field(
+        default=50,
+        description="Maximum gas price in Gwei"
+    )
+    estimated_gas_cost_usd: Decimal = Field(
+        default=Decimal("0.01"),
+        description="Estimated gas cost per transaction"
+    )
+    
+    # Email Notifications
+    enable_notifications: bool = Field(
+        default=False,
+        description="Enable email notifications"
+    )
+    sendgrid_api_key: str = Field(
+        default="",
+        description="SendGrid API key for email notifications"
+    )
+    notification_email_from: str = Field(
+        default="bot@polymarket-arbitrage.com",
+        description="Sender email address"
+    )
+    notification_email_to: str = Field(
+        default="",
+        description="Recipient email address for alerts"
+    )
+    
+    @field_validator("min_gross_edge", "min_net_profit", "min_liquidity", 
+                     "max_trade_size", "max_daily_loss", "max_open_exposure",
+                     "min_apy", "estimated_gas_cost_usd", mode="before")
+    @classmethod
+    def convert_to_decimal(cls, v):
+        """Convert numeric strings to Decimal for precision."""
+        if isinstance(v, str):
+            return Decimal(v)
+        return Decimal(str(v))
+    
+    def is_live_trading(self) -> bool:
+        """Check if live trading is enabled."""
+        return self.trading_mode == "live"
+    
+    def is_paper_trading(self) -> bool:
+        """Check if paper trading is enabled."""
+        return self.trading_mode == "paper"
+    
+    def is_scan_only(self) -> bool:
+        """Check if scan-only mode is enabled."""
+        return self.trading_mode == "scan"
+
+
+# Global config instance
+_config: Config | None = None
+
+
+def get_config() -> Config:
+    """Get the global configuration instance."""
+    global _config
+    if _config is None:
+        _config = Config()
+    return _config
+
+
+def reload_config() -> Config:
+    """Reload configuration from environment."""
+    global _config
+    _config = Config()
+    return _config
+
