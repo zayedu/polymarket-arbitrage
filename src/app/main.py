@@ -68,7 +68,9 @@ class ArbitrageBot:
             enabled=config.enable_notifications,
             sms_enabled=config.sms_enabled,
             sms_phone_number=config.sms_phone_number if config.sms_phone_number else None,
-            sms_carrier=config.sms_carrier if config.sms_carrier else None
+            sms_carrier=config.sms_carrier if config.sms_carrier else None,
+            discord_webhook_url=config.discord_webhook_url if config.discord_webhook_url else None,
+            discord_enabled=config.discord_enabled
         )
         
         # Initialize copy trading components
@@ -575,7 +577,7 @@ class ArbitrageBot:
             logger.info(f"Markets Copied: {stats['total_copied']}")
     
     async def _send_copy_trade_notifications(self, signals: List[CopyTradeSignal]):
-        """Send email and SMS notifications for copy trade signals."""
+        """Send email, SMS, and Discord notifications for copy trade signals."""
         try:
             logger.info(f"📧 Sending copy trade notifications for {len(signals)} signal(s)...")
             
@@ -583,6 +585,11 @@ class ArbitrageBot:
             if self.config.enable_notifications and signals:
                 await self.notifier.send_copy_trade_alert(signals)
                 logger.info(f"✅ Sent email with {len(signals)} copy trade signal(s)")
+            
+            # Send Discord notification (100% FREE!)
+            if self.config.discord_enabled and signals:
+                await self.notifier.send_discord_copy_trade_alert(signals)
+                logger.info("💬 Sent Discord notification")
             
             # Send SMS for the best signal
             if self.config.sms_enabled and signals:

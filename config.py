@@ -141,6 +141,16 @@ class Config(BaseSettings):
         description="Carrier name (rogers, bell, telus, fido, koodo, freedom)"
     )
     
+    # Discord Notifications (100% FREE!)
+    discord_enabled: bool = Field(
+        default=False,
+        description="Enable Discord notifications (completely free!)"
+    )
+    discord_webhook_url: str = Field(
+        default="",
+        description="Discord webhook URL for notifications"
+    )
+    
     # Copy Trading Settings
     copy_trading_enabled: bool = Field(
         default=False,

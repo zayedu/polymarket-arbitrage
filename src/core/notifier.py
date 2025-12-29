@@ -1,5 +1,5 @@
 """
-Email notification module using SendGrid for alerting on arbitrage opportunities.
+Email and Discord notification module for alerting on arbitrage opportunities.
 """
 import logging
 from datetime import datetime, timezone
@@ -14,6 +14,13 @@ try:
 except ImportError:
     SENDGRID_AVAILABLE = False
     logging.warning("SendGrid not installed. Email notifications will be disabled. Install with: pip install sendgrid")
+
+try:
+    from discord_webhook import DiscordWebhook, DiscordEmbed
+    DISCORD_AVAILABLE = True
+except ImportError:
+    DISCORD_AVAILABLE = False
+    logging.warning("Discord webhook not installed. Discord notifications will be disabled. Install with: pip install discord-webhook")
 
 from .models import ArbitrageOpportunity
 
@@ -41,19 +48,23 @@ class EmailNotifier:
         enabled: bool = True,
         sms_enabled: bool = False,
         sms_phone_number: Optional[str] = None,
-        sms_carrier: Optional[str] = None
+        sms_carrier: Optional[str] = None,
+        discord_webhook_url: Optional[str] = None,
+        discord_enabled: bool = False
     ):
         """
-        Initialize email notifier.
+        Initialize notifier with email and Discord support.
         
         Args:
             api_key: SendGrid API key
             from_email: Sender email address
             to_email: Recipient email address
-            enabled: Whether notifications are enabled
+            enabled: Whether email notifications are enabled
             sms_enabled: Whether SMS notifications are enabled
             sms_phone_number: Phone number for SMS (digits only)
             sms_carrier: Carrier name (rogers, bell, telus, etc.)
+            discord_webhook_url: Discord webhook URL
+            discord_enabled: Whether Discord notifications are enabled
         """
         self.enabled = enabled and SENDGRID_AVAILABLE
         self.api_key = api_key
@@ -65,6 +76,16 @@ class EmailNotifier:
         self.sms_phone_number = sms_phone_number
         self.sms_carrier = sms_carrier.lower() if sms_carrier else None
         self.sms_email = None
+        
+        # Discord configuration
+        self.discord_enabled = discord_enabled and DISCORD_AVAILABLE
+        self.discord_webhook_url = discord_webhook_url
+        
+        if self.discord_enabled and not discord_webhook_url:
+            logger.warning("Discord enabled but webhook URL not provided. Discord disabled.")
+            self.discord_enabled = False
+        elif self.discord_enabled:
+            logger.info(f"✅ Discord notifications enabled!")
         
         if not self.enabled:
             logger.warning("Email notifications are DISABLED")
@@ -634,6 +655,99 @@ class EmailNotifier:
                 
         except Exception as e:
             logger.error(f"Error sending SMS: {e}", exc_info=True)
+            return False
+    
+    async def send_discord(self, message: str, embed: Optional[DiscordEmbed] = None) -> bool:
+        """
+        Send Discord notification via webhook.
+        
+        Args:
+            message: Text message to send
+            embed: Optional Discord embed for rich formatting
+            
+        Returns:
+            True if Discord message sent successfully
+        """
+        if not self.discord_enabled or not self.discord_webhook_url:
+            logger.debug("Discord not enabled or not configured")
+            return False
+        
+        try:
+            webhook = DiscordWebhook(url=self.discord_webhook_url, content=message)
+            
+            if embed:
+                webhook.add_embed(embed)
+            
+            response = webhook.execute()
+            
+            if response.status_code in [200, 201, 204]:
+                logger.info(f"💬 Sent Discord notification")
+                return True
+            else:
+                logger.error(f"Failed to send Discord message. Status code: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error sending Discord notification: {e}", exc_info=True)
+            return False
+    
+    async def send_discord_copy_trade_alert(self, signals: list) -> bool:
+        """
+        Send copy trade signals to Discord with rich formatting.
+        
+        Args:
+            signals: List of CopyTradeSignal objects
+            
+        Returns:
+            True if Discord message sent successfully
+        """
+        if not self.discord_enabled or not signals:
+            return False
+        
+        try:
+            # Get whale info
+            whale_name = signals[0].whale_username or "Whale"
+            whale_accuracy = signals[0].whale_accuracy
+            
+            # Create main embed
+            embed = DiscordEmbed(
+                title=f"🐋 {len(signals)} Copy Trade Signal{'s' if len(signals) != 1 else ''} from {whale_name}!",
+                description=f"**Accuracy:** {whale_accuracy:.1f}%\n**New Positions:** {len(signals)}",
+                color=0x2196F3  # Blue color
+            )
+            
+            # Add fields for each signal (max 3 to avoid Discord limits)
+            for i, signal in enumerate(signals[:3], 1):
+                outcome_emoji = "✅" if signal.outcome == "YES" else "❌"
+                field_value = (
+                    f"{outcome_emoji} **{signal.outcome}**\n"
+                    f"💰 Entry: ${signal.whale_price:.4f}\n"
+                    f"📊 Current: ${signal.current_price:.4f}\n"
+                    f"🎯 Confidence: {signal.confidence_score:.0f}%\n"
+                    f"💵 Size: ${signal.recommended_capital:.2f}"
+                )
+                embed.add_embed_field(
+                    name=f"#{i}: {signal.market_title[:80]}",
+                    value=field_value,
+                    inline=False
+                )
+            
+            if len(signals) > 3:
+                embed.add_embed_field(
+                    name="📋 More Signals",
+                    value=f"+ {len(signals) - 3} more position(s). Check your email for full details.",
+                    inline=False
+                )
+            
+            embed.set_footer(text="Polymarket Copy Trading Bot | Paper Trading Mode")
+            embed.set_timestamp()
+            
+            # Send to Discord
+            message = f"🚨 **COPY TRADE ALERT** 🚨"
+            return await self.send_discord(message, embed)
+            
+        except Exception as e:
+            logger.error(f"Error sending Discord copy trade alert: {e}", exc_info=True)
             return False
 
 
