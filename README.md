@@ -7,23 +7,28 @@ Automatically copy trades from the top 5 performing Polymarket traders.
 ## 🚀 Quick Start
 
 ### 1. Install Dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 2. Configure
+
 Copy `env.template` to `.env` and fill in:
+
 ```bash
 cp env.template .env
 ```
 
 Required settings:
+
 - `SENDGRID_API_KEY` - For email notifications
 - `NOTIFICATION_EMAIL_TO` - Your email
 - `DISCORD_WEBHOOK_URL` - Discord webhook for instant alerts
 - `COPY_WHALE_ADDRESSES` - Already configured with top 5 traders
 
 ### 3. Run
+
 ```bash
 # Run in background 24/7
 ./scripts/run_background.sh
@@ -49,6 +54,7 @@ tail -f copy_trading.log
 ## 🔔 Notifications
 
 You'll get **Discord + Email** alerts when:
+
 - Any of the 5 traders opens a new position
 - Includes market link, position type, prices, and recommended copy size
 - Instant notifications (checks every 10 seconds)

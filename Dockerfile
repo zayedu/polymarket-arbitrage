@@ -24,7 +24,7 @@ RUN mkdir -p /app/logs /app/data
 ENV PYTHONUNBUFFERED=1
 ENV DATABASE_URL=sqlite+aiosqlite:///./data/arbitrage.db
 
-# Run the bot in scan mode by default
-CMD ["python", "-m", "src.app.main", "--mode", "scan", "--iterations", "0"]
+# Run the bot in copy trading mode (continuous monitoring)
+CMD ["python", "-m", "src.app.main", "--mode", "copy"]
 
 
