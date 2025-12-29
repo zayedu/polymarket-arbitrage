@@ -224,7 +224,7 @@ class WhaleTracker:
     
     async def get_whale_positions(self, address: str) -> List[WhalePosition]:
         """
-        Get current positions for a whale.
+        Get current positions for a whale using Polymarket's data-api.
         
         Args:
             address: Wallet address
@@ -233,7 +233,8 @@ class WhaleTracker:
             List of current positions
         """
         try:
-            url = f"{self.gamma_api_url}/users/{address}/positions"
+            # Use data-api.polymarket.com instead of gamma-api
+            url = f"https://data-api.polymarket.com/positions?user={address}"
             response = await self.client.get(url)
             
             if response.status_code == 404:
@@ -243,17 +244,22 @@ class WhaleTracker:
             data = response.json()
             
             positions = []
-            for pos_data in data.get("positions", []):
+            # data-api returns a list directly, not nested in "positions"
+            for pos_data in data:
                 try:
+                    # Map data-api fields to our model
+                    # Use slug (individual market) as market_id, not eventSlug (parent event)
+                    market_id = pos_data.get("slug", "") or pos_data.get("eventSlug", "")
+                    
                     position = WhalePosition(
                         whale_address=address,
-                        market_id=pos_data.get("market_id", ""),
-                        market_title=pos_data.get("market_title", "Unknown"),
+                        market_id=market_id,
+                        market_title=pos_data.get("title", "Unknown"),
                         outcome=pos_data.get("outcome", "YES"),
-                        shares=Decimal(str(pos_data.get("shares", 0))),
-                        avg_price=Decimal(str(pos_data.get("avg_price", 0))),
-                        current_price=Decimal(str(pos_data.get("current_price", 0))),
-                        unrealized_pnl=Decimal(str(pos_data.get("unrealized_pnl", 0))),
+                        shares=Decimal(str(pos_data.get("size", 0))),
+                        avg_price=Decimal(str(pos_data.get("avgPrice", 0))),
+                        current_price=Decimal(str(pos_data.get("curPrice", 0))),
+                        unrealized_pnl=Decimal(str(pos_data.get("cashPnl", 0))),
                         timestamp=datetime.now(timezone.utc)
                     )
                     positions.append(position)
@@ -261,6 +267,7 @@ class WhaleTracker:
                     logger.debug(f"Skipping invalid position: {e}")
                     continue
             
+            logger.info(f"✅ Fetched {len(positions)} positions for {address[:8]}...")
             return positions
             
         except httpx.HTTPError as e:
