@@ -3,7 +3,8 @@
 # Polymarket Copy Trading Bot Launcher
 # Tracks @ilovecircle's positions and sends email alerts
 
-cd "$(dirname "$0")"
+# Navigate to project root (parent of scripts/)
+cd "$(dirname "$0")/.."
 
 echo "╔════════════════════════════════════════════════════════════════╗"
 echo "║                                                                ║"
@@ -18,6 +19,7 @@ echo ""
 echo "Press Ctrl+C to stop"
 echo ""
 
-# Run the bot
-python3 -m src.app.main --mode copy
+# Set PYTHONPATH and run the bot
+PROJECT_ROOT=$(pwd)
+PYTHONPATH="${PROJECT_ROOT}" python3 -m src.app.main --mode copy
 

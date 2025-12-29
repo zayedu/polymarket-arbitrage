@@ -19,3 +19,4 @@ def test_config_modes():
     assert not config.is_scan_only()
 
 
+

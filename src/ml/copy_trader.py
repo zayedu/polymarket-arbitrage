@@ -229,6 +229,17 @@ class CopyTrader:
         """
         signals = []
         
+        # Fetch all active markets once and build a lookup by condition_id
+        logger.info(f"Fetching active markets for position matching...")
+        from decimal import Decimal
+        all_markets = await self.gamma.get_active_markets(
+            min_volume=Decimal("10"),
+            max_days_to_resolution=365,
+            limit=1000
+        )
+        market_lookup = {m.condition_id: m for m in all_markets}
+        logger.info(f"Built lookup with {len(market_lookup)} markets")
+        
         for position in new_positions:
             try:
                 # Skip if we've already copied this market recently
@@ -245,15 +256,19 @@ class CopyTrader:
                     logger.warning(f"Whale {position.whale_address[:8]}... not in tracker")
                     continue
                 
-                # Get market data
-                market = await self.gamma.get_market(position.market_id)
+                # Get market data from lookup (position.market_id is condition_id)
+                market = market_lookup.get(position.market_id)
                 if not market:
-                    logger.warning(f"Could not fetch market {position.market_id}")
+                    logger.info(f"⚠️  Market {position.market_title[:40]} (condition_id: {position.market_id[:16]}...) not found in active markets")
                     continue
                 
+                logger.info(f"🔍 Evaluating position: {position.outcome} on '{market.title[:50]}' @ ${position.avg_price}")
+                
                 # Get current price
+                from src.core.models import OutcomeType
                 token_id = market.yes_token_id if position.outcome == "YES" else market.no_token_id
-                orderbook = await self.clob.get_orderbook(token_id)
+                outcome_type = OutcomeType.YES if position.outcome == "YES" else OutcomeType.NO
+                orderbook = await self.clob.get_orderbook(token_id, outcome_type)
                 current_price = orderbook.best_ask_price if orderbook else position.avg_price
                 
                 # Apply filters
@@ -312,4 +327,5 @@ class CopyTrader:
             "copy_ratio": float(self.filter.copy_ratio),
             "max_copy_size": float(self.filter.max_copy_size),
         }
+
 

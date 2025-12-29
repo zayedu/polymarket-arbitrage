@@ -211,7 +211,7 @@ class GammaClient:
             return Market(
                 id=market_id,
                 title=data.get("question") or data.get("title") or "Unknown",
-                condition_id=data.get("condition_id", market_id),
+                condition_id=data.get("conditionId") or data.get("condition_id", market_id),
                 yes_token_id=yes_token_id,
                 no_token_id=no_token_id,
                 end_date=end_date,

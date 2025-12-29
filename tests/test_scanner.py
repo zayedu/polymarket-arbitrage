@@ -56,3 +56,4 @@ def test_arbitrage_detection():
     assert edge == Decimal("0.02")  # 2% edge
 
 
+

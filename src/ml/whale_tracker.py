@@ -248,16 +248,26 @@ class WhaleTracker:
             for pos_data in data:
                 try:
                     # Map data-api fields to our model
-                    # Use slug (individual market) as market_id, not eventSlug (parent event)
-                    market_id = pos_data.get("slug", "") or pos_data.get("eventSlug", "")
+                    # Use conditionId as market_id (this is what Gamma API expects)
+                    market_id = pos_data.get("conditionId", "")
+                    if not market_id:
+                        logger.debug(f"Position missing conditionId, skipping")
+                        continue
+                    
+                    # Determine outcome from asset ID (even = NO, odd = YES)
+                    # Or use a heuristic based on price
+                    asset_id = pos_data.get("asset", "")
+                    avg_price = Decimal(str(pos_data.get("avgPrice", 0.5)))
+                    # If price > 0.5, likely YES; if < 0.5, likely NO
+                    outcome = "YES" if avg_price >= Decimal("0.5") else "NO"
                     
                     position = WhalePosition(
                         whale_address=address,
                         market_id=market_id,
                         market_title=pos_data.get("title", "Unknown"),
-                        outcome=pos_data.get("outcome", "YES"),
+                        outcome=outcome,
                         shares=Decimal(str(pos_data.get("size", 0))),
-                        avg_price=Decimal(str(pos_data.get("avgPrice", 0))),
+                        avg_price=avg_price,
                         current_price=Decimal(str(pos_data.get("curPrice", 0))),
                         unrealized_pnl=Decimal(str(pos_data.get("cashPnl", 0))),
                         timestamp=datetime.now(timezone.utc)
