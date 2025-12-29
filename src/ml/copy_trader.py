@@ -48,12 +48,12 @@ class CopyTradeFilter:
         """
         self.config = config
         
-        # Copy trading specific settings
-        self.min_whale_accuracy = Decimal("65")  # Minimum 65% accuracy
-        self.min_whale_trades = 50  # Minimum trade history
-        self.max_price = Decimal("0.95")  # Don't buy above 95¢
-        self.min_price = Decimal("0.05")  # Don't buy below 5¢
-        self.min_liquidity = Decimal("100")  # Minimum market liquidity
+        # Copy trading specific settings - VERY PERMISSIVE (copy everything!)
+        self.min_whale_accuracy = Decimal("0")  # No minimum (we trust @ilovecircle)
+        self.min_whale_trades = 0  # No minimum trade history required
+        self.max_price = Decimal("0.999")  # Accept almost any price (up to 99.9¢)
+        self.min_price = Decimal("0.001")  # Accept almost any price (down to 0.1¢)
+        self.min_liquidity = Decimal("0")  # No minimum liquidity required
         self.max_copy_size = Decimal("50")  # Max $50 per copy trade
         self.copy_ratio = Decimal("0.01")  # Copy 1% of whale's position
     

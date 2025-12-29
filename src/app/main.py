@@ -577,11 +577,14 @@ class ArbitrageBot:
     async def _send_copy_trade_notifications(self, signals: List[CopyTradeSignal]):
         """Send email and SMS notifications for copy trade signals."""
         try:
-            # Send email with signal details
-            # (Reuse opportunity email format for now)
-            logger.info("📧 Sending copy trade notifications...")
+            logger.info(f"📧 Sending copy trade notifications for {len(signals)} signal(s)...")
             
-            # Send SMS
+            # Send email with all signals
+            if self.config.enable_notifications and signals:
+                await self.notifier.send_copy_trade_alert(signals)
+                logger.info(f"✅ Sent email with {len(signals)} copy trade signal(s)")
+            
+            # Send SMS for the best signal
             if self.config.sms_enabled and signals:
                 best = signals[0]
                 sms_msg = f"COPY SIGNAL: {best.whale_username or 'Whale'} bought {best.outcome} on '{best.market_title[:40]}' - Confidence: {best.confidence_score:.0f}%"
@@ -589,7 +592,7 @@ class ArbitrageBot:
                 logger.info("📱 Sent SMS notification")
                 
         except Exception as e:
-            logger.error(f"Error sending copy trade notifications: {e}")
+            logger.error(f"Error sending copy trade notifications: {e}", exc_info=True)
 
 
 @click.command()

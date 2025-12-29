@@ -280,6 +280,179 @@ class EmailNotifier:
         
         return html
     
+    async def send_copy_trade_alert(self, signals: list, max_signals: int = 10) -> bool:
+        """
+        Send email alert for copy trade signals.
+        
+        Args:
+            signals: List of CopyTradeSignal objects
+            max_signals: Maximum number to include in email
+            
+        Returns:
+            True if email sent successfully
+        """
+        if not self.enabled:
+            return False
+        
+        if not signals:
+            return False
+        
+        try:
+            # Limit signals to display
+            top_signals = signals[:max_signals]
+            
+            # Build email content
+            subject = f"🐋 {len(signals)} Copy Trade Signal{'s' if len(signals) != 1 else ''} from @ilovecircle!"
+            html_content = self._build_copy_trade_email(top_signals, len(signals))
+            
+            # Send email
+            message = Mail(
+                from_email=Email(self.from_email),
+                to_emails=To(self.to_email),
+                subject=subject,
+                html_content=Content("text/html", html_content)
+            )
+            
+            response = self.client.send(message)
+            
+            if response.status_code in [200, 201, 202]:
+                logger.info(f"📧 Sent copy trade alert email to {self.to_email}")
+                return True
+            else:
+                logger.error(f"Failed to send copy trade email. Status code: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error sending copy trade alert: {e}", exc_info=True)
+            return False
+    
+    def _build_copy_trade_email(self, signals: list, total_count: int) -> str:
+        """Build HTML email content for copy trade signals."""
+        
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        
+        # Get whale info from first signal
+        whale_name = signals[0].whale_username or "Whale"
+        whale_accuracy = signals[0].whale_accuracy
+        
+        html = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .header {{ background-color: #2196F3; color: white; padding: 20px; text-align: center; }}
+                .whale-info {{ background-color: #f0f8ff; padding: 15px; margin: 15px 0; border-radius: 5px; }}
+                .content {{ padding: 20px; }}
+                .signal {{ 
+                    border: 1px solid #ddd; 
+                    border-radius: 5px; 
+                    padding: 15px; 
+                    margin: 15px 0;
+                    background-color: #f9f9f9;
+                }}
+                .signal h3 {{ margin-top: 0; color: #2196F3; }}
+                .metric {{ display: inline-block; margin-right: 20px; }}
+                .metric-label {{ font-weight: bold; color: #666; }}
+                .metric-value {{ color: #333; }}
+                .yes {{ color: #4CAF50; font-weight: bold; }}
+                .no {{ color: #f44336; font-weight: bold; }}
+                .confidence {{ color: #FF9800; font-weight: bold; }}
+                .link {{ 
+                    display: inline-block;
+                    margin-top: 10px;
+                    padding: 8px 16px;
+                    background-color: #2196F3;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 4px;
+                }}
+                .footer {{ 
+                    margin-top: 30px; 
+                    padding-top: 20px; 
+                    border-top: 1px solid #ddd;
+                    color: #666;
+                    font-size: 12px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>🐋 Copy Trade Alert</h1>
+                <p>{timestamp}</p>
+            </div>
+            <div class="content">
+                <div class="whale-info">
+                    <h2>📊 Whale: {whale_name}</h2>
+                    <p><strong>Accuracy:</strong> {whale_accuracy:.1f}%</p>
+                    <p><strong>New Positions:</strong> {total_count}</p>
+                </div>
+                <p><strong>{total_count} new position{'s' if total_count != 1 else ''} detected!</strong></p>
+                <p>Top {len(signals)} signal{'s' if len(signals) != 1 else ''} shown below:</p>
+        """
+        
+        for i, signal in enumerate(signals, 1):
+            # Build Polymarket URL
+            market_slug = signal.market_title.lower().replace(' ', '-').replace('?', '')[:50]
+            polymarket_url = f"https://polymarket.com/event/{market_slug}"
+            
+            outcome_class = "yes" if signal.outcome == "YES" else "no"
+            
+            html += f"""
+                <div class="signal">
+                    <h3>#{i}: {signal.market_title}</h3>
+                    <div class="metric">
+                        <span class="metric-label">Position:</span>
+                        <span class="metric-value {outcome_class}">{signal.outcome}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Whale's Price:</span>
+                        <span class="metric-value">${signal.whale_price:.4f}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Current Price:</span>
+                        <span class="metric-value">${signal.current_price:.4f}</span>
+                    </div>
+                    <br>
+                    <div class="metric">
+                        <span class="metric-label">Confidence:</span>
+                        <span class="metric-value confidence">{signal.confidence_score:.0f}%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Recommended Size:</span>
+                        <span class="metric-value">${signal.recommended_capital:.2f}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Shares:</span>
+                        <span class="metric-value">{signal.recommended_shares:.0f}</span>
+                    </div>
+                    <br>
+                    <div class="metric">
+                        <span class="metric-label">Whale's Shares:</span>
+                        <span class="metric-value">{signal.whale_shares:.0f}</span>
+                    </div>
+                    <a href="{polymarket_url}" class="link" target="_blank">View on Polymarket →</a>
+                </div>
+            """
+        
+        html += """
+                <div class="footer">
+                    <p><strong>⚠️ Important:</strong></p>
+                    <ul>
+                        <li>This is a copy trading signal - not financial advice</li>
+                        <li>Verify the position on Polymarket before executing</li>
+                        <li>Consider your own risk tolerance and position sizing</li>
+                        <li>Past performance does not guarantee future results</li>
+                        <li>You are in PAPER TRADING mode - no real money at risk</li>
+                    </ul>
+                    <p>Polymarket Copy Trading Bot | Tracking @ilovecircle</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return html
+    
     async def send_health_check(self, stats: Optional[dict] = None) -> bool:
         """
         Send daily health check email.
