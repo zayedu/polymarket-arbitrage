@@ -720,15 +720,11 @@ class EmailNotifier:
             for i, signal in enumerate(signals[:3], 1):
                 outcome_emoji = "✅" if signal.outcome == "YES" else "❌"
                 
-                # Use the real market slug from the API
-                if signal.market_slug:
-                    polymarket_url = f"https://polymarket.com/event/{signal.market_slug}"
-                else:
-                    # Fallback: create slug from title
-                    market_slug = signal.market_title.lower()
-                    market_slug = market_slug.replace(' ', '-').replace('?', '').replace("'", '').replace(',', '')
-                    market_slug = market_slug[:100]
-                    polymarket_url = f"https://polymarket.com/event/{market_slug}"
+                # Create a Polymarket search URL (most reliable way to find the market)
+                # URL encode the market title for search
+                import urllib.parse
+                search_query = urllib.parse.quote(signal.market_title)
+                polymarket_url = f"https://polymarket.com/search?q={search_query}"
                 
                 field_value = (
                     f"{outcome_emoji} **{signal.outcome}**\n"
@@ -736,7 +732,7 @@ class EmailNotifier:
                     f"📊 Current: ${signal.current_price:.4f}\n"
                     f"🎯 Confidence: {signal.confidence_score:.0f}%\n"
                     f"💵 Size: ${signal.recommended_capital:.2f}\n"
-                    f"🔗 [View on Polymarket]({polymarket_url})"
+                    f"🔗 [Search on Polymarket]({polymarket_url})"
                 )
                 embed.add_embed_field(
                     name=f"#{i}: {signal.market_title[:80]}",
