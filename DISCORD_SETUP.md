@@ -25,6 +25,7 @@ Discord notifications are **completely free** with unlimited messages! Perfect f
 6. Click "Copy Webhook URL"
 
 **Your webhook URL will look like:**
+
 ```
 https://discord.com/api/webhooks/123456789/abcdefghijklmnopqrstuvwxyz
 ```
@@ -93,12 +94,14 @@ New Positions: 3
 ## 🔧 Troubleshooting
 
 **Not receiving messages?**
+
 1. Make sure `DISCORD_ENABLED=true` in your `.env`
 2. Check that your webhook URL is correct
 3. Make sure the bot is running: `tail -f copy_trading.log`
 4. Look for "💬 Sent Discord notification" in the logs
 
 **Want to test it?**
+
 ```bash
 python3 -m src.app.main --test-notifications
 ```
@@ -108,4 +111,3 @@ python3 -m src.app.main --test-notifications
 ## 🎉 You're All Set!
 
 Your Discord will now get instant notifications whenever @ilovecircle makes a trade! 🐋💰
-

@@ -719,12 +719,20 @@ class EmailNotifier:
             # Add fields for each signal (max 3 to avoid Discord limits)
             for i, signal in enumerate(signals[:3], 1):
                 outcome_emoji = "✅" if signal.outcome == "YES" else "❌"
+                
+                # Create Polymarket URL from market title
+                market_slug = signal.market_title.lower()
+                market_slug = market_slug.replace(' ', '-').replace('?', '').replace("'", '').replace(',', '')
+                market_slug = market_slug[:100]  # Limit length
+                polymarket_url = f"https://polymarket.com/event/{market_slug}"
+                
                 field_value = (
                     f"{outcome_emoji} **{signal.outcome}**\n"
                     f"💰 Entry: ${signal.whale_price:.4f}\n"
                     f"📊 Current: ${signal.current_price:.4f}\n"
                     f"🎯 Confidence: {signal.confidence_score:.0f}%\n"
-                    f"💵 Size: ${signal.recommended_capital:.2f}"
+                    f"💵 Size: ${signal.recommended_capital:.2f}\n"
+                    f"🔗 [View on Polymarket]({polymarket_url})"
                 )
                 embed.add_embed_field(
                     name=f"#{i}: {signal.market_title[:80]}",
