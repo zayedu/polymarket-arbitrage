@@ -6,6 +6,7 @@ import asyncio
 import logging
 import sys
 from decimal import Decimal
+from typing import List
 
 import click
 from rich.logging import RichHandler
