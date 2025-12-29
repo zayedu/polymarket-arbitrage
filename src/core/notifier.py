@@ -147,7 +147,7 @@ class EmailNotifier:
                 return False
                 
         except Exception as e:
-            logger.error(f"Error sending opportunity alert: {e}")
+            logger.error(f"Error sending opportunity alert: {e}", exc_info=True)
             return False
     
     def _build_opportunity_email(
@@ -217,7 +217,7 @@ class EmailNotifier:
                     <h3>#{i}: {opp.market.title}</h3>
                     <div class="metric">
                         <span class="metric-label">Type:</span>
-                        <span class="metric-value">{opp.opportunity_type.replace('_', ' ').title()}</span>
+                        <span class="metric-value">Buy Both (Long Arbitrage)</span>
                     </div>
                     <div class="metric">
                         <span class="metric-label">Net Profit:</span>
@@ -247,11 +247,11 @@ class EmailNotifier:
                     </div>
                     <div class="metric">
                         <span class="metric-label">Capital Required:</span>
-                        <span class="metric-value">${opp.required_capital:.2f}</span>
+                        <span class="metric-value">${opp.position_size:.2f}</span>
                     </div>
                     <div class="metric">
                         <span class="metric-label">Liquidity:</span>
-                        <span class="metric-value">${opp.top_of_book_depth:.2f}</span>
+                        <span class="metric-value">${opp.liquidity:.2f}</span>
                     </div>
                     <br>
                     <div class="metric">
@@ -460,7 +460,7 @@ class EmailNotifier:
                 return False
                 
         except Exception as e:
-            logger.error(f"Error sending SMS: {e}")
+            logger.error(f"Error sending SMS: {e}", exc_info=True)
             return False
 
 

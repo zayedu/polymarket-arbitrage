@@ -106,6 +106,7 @@ class ArbitrageBot:
         
         test_market = Market(
             id="test-market-123",
+            condition_id="0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
             title="Test Market: Will notifications work?",
             description="This is a test notification",
             end_date=datetime.now(timezone.utc) + timedelta(days=7),
@@ -114,18 +115,38 @@ class ArbitrageBot:
             no_token_id="456"
         )
         
+        # Create dummy orderbooks for test
+        from src.core.models import OrderBook, OrderBookLevel
+        
+        test_yes_orderbook = OrderBook(
+            market_id="test-market-123",
+            token_id="123",
+            outcome="YES",
+            bids=[OrderBookLevel(price=Decimal("0.44"), size=Decimal("100"))],
+            asks=[OrderBookLevel(price=Decimal("0.45"), size=Decimal("100"))]
+        )
+        
+        test_no_orderbook = OrderBook(
+            market_id="test-market-123",
+            token_id="456",
+            outcome="NO",
+            bids=[OrderBookLevel(price=Decimal("0.49"), size=Decimal("100"))],
+            asks=[OrderBookLevel(price=Decimal("0.50"), size=Decimal("100"))]
+        )
+        
         test_opp = ArbitrageOpportunity(
             market=test_market,
-            opportunity_type="buy_both",
+            yes_orderbook=test_yes_orderbook,
+            no_orderbook=test_no_orderbook,
             yes_ask=Decimal("0.45"),
             no_ask=Decimal("0.50"),
-            yes_bid=Decimal("0.44"),
-            no_bid=Decimal("0.49"),
             gross_edge=Decimal("0.05"),
+            estimated_gas=Decimal("0.01"),
             net_profit=Decimal("0.04"),
-            required_capital=Decimal("0.95"),
-            top_of_book_depth=Decimal("100"),
-            apy=Decimal("150.5")
+            position_size=Decimal("10.0"),
+            liquidity=Decimal("100.0"),
+            apy=Decimal("150.5"),
+            roi=Decimal("0.04")
         )
         
         # Send test email
