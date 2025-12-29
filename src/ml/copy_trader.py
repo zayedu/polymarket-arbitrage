@@ -55,15 +55,17 @@ class CopyTradeFilter:
         self.max_price = Decimal("0.9999")  # Accept almost any price (up to 99.99¢)
         self.min_price = Decimal("0.0001")  # Accept almost any price (down to 0.01¢)
         self.min_liquidity = Decimal("0")  # No minimum liquidity required
-        self.max_copy_size = Decimal("50")  # Max $50 per copy trade
-        self.copy_ratio = Decimal("0.01")  # Copy 1% of whale's position
+        self.max_copy_size = config.max_copy_size  # From config
+        self.copy_ratio = config.copy_ratio  # From config
+        self.min_confidence_score = config.min_confidence_score  # Confidence threshold
     
     def should_copy(
         self,
         whale: WhaleProfile,
         position: WhalePosition,
         market: Optional[Market] = None,
-        current_price: Optional[Decimal] = None
+        current_price: Optional[Decimal] = None,
+        confidence_score: Optional[Decimal] = None
     ) -> tuple[bool, List[str]]:
         """
         Determine if we should copy this whale's position.
@@ -73,11 +75,16 @@ class CopyTradeFilter:
             position: Whale's position
             market: Market data (optional)
             current_price: Current market price (optional)
+            confidence_score: Confidence score for this trade (optional)
             
         Returns:
             (should_copy, reasons) tuple
         """
         reasons = []
+        
+        # Check confidence threshold (most important filter for automated trading)
+        if confidence_score is not None and confidence_score < self.min_confidence_score:
+            return False, [f"Confidence too low: {confidence_score:.0f}% < {self.min_confidence_score:.0f}%"]
         
         # Check whale accuracy
         if whale.accuracy < self.min_whale_accuracy:
@@ -103,6 +110,8 @@ class CopyTradeFilter:
             return False, ["Market has already resolved"]
         
         # All checks passed
+        if confidence_score is not None:
+            reasons.append(f"Confidence: {confidence_score:.0f}%")
         reasons.append(f"Whale accuracy: {whale.accuracy:.1f}%")
         reasons.append(f"Whale trades: {whale.total_trades}")
         reasons.append(f"Price: ${price:.4f}")
@@ -149,15 +158,18 @@ class CopyTrader:
         self,
         whale_shares: Decimal,
         whale_price: Decimal,
-        current_price: Decimal
+        current_price: Decimal,
+        confidence_score: Optional[Decimal] = None
     ) -> tuple[Decimal, Decimal]:
         """
         Calculate how many shares to buy based on whale's position.
+        Scales position size by confidence when using confidence_scaled mode.
         
         Args:
             whale_shares: Number of shares whale bought
             whale_price: Price whale paid
             current_price: Current market price
+            confidence_score: Confidence score (0-100) for scaling position size
             
         Returns:
             (shares_to_buy, capital_required) tuple
@@ -165,11 +177,23 @@ class CopyTrader:
         # Calculate whale's capital deployed
         whale_capital = whale_shares * whale_price
         
-        # Copy a proportional amount (default 1% of whale's size)
-        our_capital = whale_capital * self.filter.copy_ratio
+        # Base size: proportional to whale's position (default 1%)
+        base_capital = whale_capital * self.filter.copy_ratio
         
-        # Cap at max copy size
+        # Apply position sizing strategy
+        if self.config.position_sizing_mode == "confidence_scaled" and confidence_score is not None:
+            # Scale by confidence (60% confidence = 0.6x base, 100% = 1.0x base)
+            confidence_multiplier = confidence_score / Decimal("100")
+            our_capital = base_capital * confidence_multiplier
+        elif self.config.position_sizing_mode == "fixed":
+            # Fixed amount per trade (use min_position_size as the fixed amount)
+            our_capital = self.config.min_position_size
+        else:  # whale_ratio (default)
+            our_capital = base_capital
+        
+        # Apply caps and minimums
         our_capital = min(our_capital, self.filter.max_copy_size)
+        our_capital = max(our_capital, self.config.min_position_size)
         
         # Calculate shares at current price
         our_shares = our_capital / current_price if current_price > 0 else Decimal("0")
@@ -268,22 +292,23 @@ class CopyTrader:
                 # Use current price from position data (more reliable than orderbook)
                 current_price = position.current_price if position.current_price > 0 else position.avg_price
                 
-                # Apply filters
-                should_copy, reasons = self.filter.should_copy(whale, position, market, current_price)
+                # Calculate confidence first (needed for filtering and position sizing)
+                confidence = self.calculate_confidence(whale, position, market)
+                
+                # Apply filters (including confidence threshold)
+                should_copy, reasons = self.filter.should_copy(whale, position, market, current_price, confidence)
                 
                 if not should_copy:
                     logger.info(f"❌ Not copying {whale.username or 'whale'}'s position: {reasons[0]}")
                     continue
                 
-                # Calculate copy size
+                # Calculate copy size (scaled by confidence if enabled)
                 our_shares, our_capital = self.calculate_copy_size(
                     position.shares,
                     position.avg_price,
-                    current_price
+                    current_price,
+                    confidence
                 )
-                
-                # Calculate confidence
-                confidence = self.calculate_confidence(whale, position, market)
                 
                 # Create signal
                 signal = CopyTradeSignal(

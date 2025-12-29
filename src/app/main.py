@@ -21,6 +21,8 @@ from src.core.pnl import PnLTracker
 from src.core.storage import Storage
 from src.core.paper_trader import PaperTrader
 from src.core.notifier import EmailNotifier
+from src.core.auto_executor import AutoExecutor
+from src.core.paper_trading_tracker import PaperTradingTracker
 from src.ml.whale_tracker import WhaleTracker
 from src.ml.copy_trader import CopyTrader, CopyTradeSignal
 from src.app.ui import UI
@@ -76,6 +78,8 @@ class ArbitrageBot:
         # Initialize copy trading components
         self.whale_tracker = WhaleTracker()
         self.copy_trader = CopyTrader(config, self.whale_tracker, self.gamma, self.clob)
+        self.auto_executor = AutoExecutor(config, self.clob, self.storage)
+        self.paper_tracker = PaperTradingTracker("paper_trades.csv")
     
     async def setup(self):
         """Setup database and resources."""
@@ -543,19 +547,55 @@ class ArbitrageBot:
                 if self.config.enable_notifications:
                     await self._send_copy_trade_notifications(signals)
                 
-                # In paper mode, just log. In live mode, would execute here.
-                if self.config.trading_mode == 'paper':
-                    logger.info("\n📋 Paper mode: Signals logged but not executed")
+                # Execute trades if auto-trading is enabled
+                if self.config.auto_trading_enabled:
+                    logger.info(f"\n🤖 Auto-trading enabled - executing {len(signals)} signal(s)...")
+                    execution_results = []
+                    
+                    for signal in signals:
+                        result = await self.auto_executor.execute_copy_signal(signal)
+                        execution_results.append((signal, result))
+                        logger.info(f"  • {signal.market_title[:40]}: {result.value}")
+                        
+                        # Log to paper trading tracker
+                        self.paper_tracker.log_trade(signal, result.value)
+                    
+                    # Summary
+                    success_count = sum(1 for _, r in execution_results if r.value in ["SUCCESS", "SIMULATED"])
+                    skipped_count = sum(1 for _, r in execution_results if r.value == "SKIPPED")
+                    rejected_count = sum(1 for _, r in execution_results if r.value == "REJECTED")
+                    failed_count = sum(1 for _, r in execution_results if r.value == "FAILED")
+                    
+                    logger.info(f"\n📊 Execution Summary:")
+                    logger.info(f"  ✅ Success/Simulated: {success_count}")
+                    if skipped_count > 0:
+                        logger.info(f"  ⏭️  Skipped: {skipped_count}")
+                    if rejected_count > 0:
+                        logger.info(f"  🚫 Rejected: {rejected_count}")
+                    if failed_count > 0:
+                        logger.info(f"  ❌ Failed: {failed_count}")
+                else:
+                    # Auto-trading disabled - just notify
+                    if self.config.trading_mode == 'paper':
+                        logger.info("\n📋 Paper mode: Signals logged but not executed")
+                    else:
+                        logger.info("\n⚠️  Auto-trading disabled. Set AUTO_TRADING_ENABLED=true to execute trades.")
                     for signal in signals:
                         self.copy_trader.mark_as_copied(signal.market_id)
                 else:
                     logger.info("\n⚠️  Live copy trading not yet implemented. Use paper mode for now.")
+                
+                # Print summary every 10 iterations
+                if iteration % 10 == 0:
+                    self.paper_tracker.print_summary()
                 
                 # Wait before next iteration
                 await asyncio.sleep(self.config.poll_interval_seconds)
         
         except KeyboardInterrupt:
             logger.info("\n👋 Copy trading interrupted by user")
+            # Print final summary
+            self.paper_tracker.print_summary()
         except Exception as e:
             logger.error(f"Fatal error in copy trading mode: {e}", exc_info=True)
             if self.config.enable_notifications:

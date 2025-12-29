@@ -173,9 +173,33 @@ class Config(BaseSettings):
         description="Minimum whale accuracy to copy (%)"
     )
     
+    # Automated Trading Settings
+    auto_trading_enabled: bool = Field(
+        default=False,
+        description="Enable automated trade execution (paper mode safe)"
+    )
+    min_confidence_score: Decimal = Field(
+        default=Decimal("70"),
+        description="Minimum confidence score (0-100) to execute trade"
+    )
+    max_open_positions: int = Field(
+        default=10,
+        description="Maximum number of open positions"
+    )
+    min_position_size: Decimal = Field(
+        default=Decimal("5"),
+        description="Minimum position size in USD"
+    )
+    position_sizing_mode: str = Field(
+        default="confidence_scaled",
+        description="Position sizing strategy: confidence_scaled, fixed, or whale_ratio"
+    )
+    
     @field_validator("min_gross_edge", "min_net_profit", "min_liquidity", 
                      "max_trade_size", "max_daily_loss", "max_open_exposure",
-                     "min_apy", "estimated_gas_cost_usd", mode="before")
+                     "min_apy", "estimated_gas_cost_usd", "copy_ratio", 
+                     "max_copy_size", "min_whale_accuracy", "min_confidence_score",
+                     "min_position_size", mode="before")
     @classmethod
     def convert_to_decimal(cls, v):
         """Convert numeric strings to Decimal for precision."""
