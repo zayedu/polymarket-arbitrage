@@ -582,8 +582,6 @@ class ArbitrageBot:
                         logger.info("\n⚠️  Auto-trading disabled. Set AUTO_TRADING_ENABLED=true to execute trades.")
                     for signal in signals:
                         self.copy_trader.mark_as_copied(signal.market_id)
-                else:
-                    logger.info("\n⚠️  Live copy trading not yet implemented. Use paper mode for now.")
                 
                 # Print summary every 10 iterations
                 if iteration % 10 == 0:
