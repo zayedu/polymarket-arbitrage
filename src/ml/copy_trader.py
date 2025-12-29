@@ -24,6 +24,7 @@ class CopyTradeSignal(BaseModel):
     whale_username: Optional[str] = None
     whale_accuracy: Decimal
     market_id: str
+    market_slug: Optional[str] = None  # For building Polymarket URLs
     market_title: str
     outcome: str  # "YES" or "NO"
     whale_shares: Decimal
@@ -290,6 +291,7 @@ class CopyTrader:
                     whale_username=whale.username,
                     whale_accuracy=whale.accuracy,
                     market_id=position.market_id,
+                    market_slug=market.id,  # Use market.id as slug for URL
                     market_title=position.market_title,
                     outcome=position.outcome,
                     whale_shares=position.shares,

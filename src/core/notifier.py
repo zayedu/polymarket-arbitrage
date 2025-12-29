@@ -720,11 +720,15 @@ class EmailNotifier:
             for i, signal in enumerate(signals[:3], 1):
                 outcome_emoji = "✅" if signal.outcome == "YES" else "❌"
                 
-                # Create Polymarket URL from market title
-                market_slug = signal.market_title.lower()
-                market_slug = market_slug.replace(' ', '-').replace('?', '').replace("'", '').replace(',', '')
-                market_slug = market_slug[:100]  # Limit length
-                polymarket_url = f"https://polymarket.com/event/{market_slug}"
+                # Use the real market slug from the API
+                if signal.market_slug:
+                    polymarket_url = f"https://polymarket.com/event/{signal.market_slug}"
+                else:
+                    # Fallback: create slug from title
+                    market_slug = signal.market_title.lower()
+                    market_slug = market_slug.replace(' ', '-').replace('?', '').replace("'", '').replace(',', '')
+                    market_slug = market_slug[:100]
+                    polymarket_url = f"https://polymarket.com/event/{market_slug}"
                 
                 field_value = (
                     f"{outcome_emoji} **{signal.outcome}**\n"
