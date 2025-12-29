@@ -18,3 +18,4 @@ def test_config_modes():
     assert not config.is_live_trading()
     assert not config.is_scan_only()
 
+

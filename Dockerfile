@@ -27,3 +27,4 @@ ENV DATABASE_URL=sqlite+aiosqlite:///./data/arbitrage.db
 # Run the bot in scan mode by default
 CMD ["python", "-m", "src.app.main", "--mode", "scan", "--iterations", "0"]
 
+

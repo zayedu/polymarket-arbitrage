@@ -23,12 +23,25 @@ logger = logging.getLogger(__name__)
 class EmailNotifier:
     """Sends email notifications for arbitrage opportunities and system events."""
     
+    # SMS carrier gateways for email-to-SMS
+    SMS_GATEWAYS = {
+        "rogers": "pcs.rogers.com",
+        "bell": "txt.bell.ca",
+        "telus": "msg.telus.com",
+        "fido": "fido.ca",
+        "koodo": "msg.koodomobile.com",
+        "freedom": "txt.freedommobile.ca"
+    }
+    
     def __init__(
         self,
         api_key: Optional[str] = None,
         from_email: Optional[str] = None,
         to_email: Optional[str] = None,
-        enabled: bool = True
+        enabled: bool = True,
+        sms_enabled: bool = False,
+        sms_phone_number: Optional[str] = None,
+        sms_carrier: Optional[str] = None
     ):
         """
         Initialize email notifier.
@@ -38,11 +51,20 @@ class EmailNotifier:
             from_email: Sender email address
             to_email: Recipient email address
             enabled: Whether notifications are enabled
+            sms_enabled: Whether SMS notifications are enabled
+            sms_phone_number: Phone number for SMS (digits only)
+            sms_carrier: Carrier name (rogers, bell, telus, etc.)
         """
         self.enabled = enabled and SENDGRID_AVAILABLE
         self.api_key = api_key
         self.from_email = from_email or "bot@polymarket-arbitrage.com"
         self.to_email = to_email
+        
+        # SMS configuration
+        self.sms_enabled = sms_enabled and SENDGRID_AVAILABLE
+        self.sms_phone_number = sms_phone_number
+        self.sms_carrier = sms_carrier.lower() if sms_carrier else None
+        self.sms_email = None
         
         if not self.enabled:
             logger.warning("Email notifications are DISABLED")
@@ -61,6 +83,19 @@ class EmailNotifier:
         try:
             self.client = SendGridAPIClient(api_key)
             logger.info(f"✅ Email notifier initialized. Alerts will be sent to: {to_email}")
+            
+            # Setup SMS if enabled
+            if self.sms_enabled and sms_phone_number and sms_carrier:
+                if sms_carrier in self.SMS_GATEWAYS:
+                    self.sms_email = f"{sms_phone_number}@{self.SMS_GATEWAYS[sms_carrier]}"
+                    logger.info(f"✅ SMS notifications enabled. Messages will be sent to: {sms_phone_number} ({sms_carrier})")
+                else:
+                    logger.warning(f"Unknown SMS carrier: {sms_carrier}. SMS disabled. Valid carriers: {list(self.SMS_GATEWAYS.keys())}")
+                    self.sms_enabled = False
+            elif self.sms_enabled:
+                logger.warning("SMS enabled but phone number or carrier not provided. SMS disabled.")
+                self.sms_enabled = False
+                
         except Exception as e:
             logger.error(f"Failed to initialize SendGrid client: {e}")
             self.enabled = False
@@ -387,4 +422,45 @@ class EmailNotifier:
         except Exception as e:
             logger.error(f"Error sending error alert: {e}")
             return False
+    
+    async def send_sms(self, message: str, max_length: int = 140) -> bool:
+        """
+        Send SMS notification via email-to-SMS gateway.
+        
+        Args:
+            message: Text message to send (will be truncated to max_length)
+            max_length: Maximum message length (default 140 chars for SMS)
+            
+        Returns:
+            True if SMS sent successfully
+        """
+        if not self.sms_enabled or not self.sms_email:
+            logger.debug("SMS not enabled or not configured")
+            return False
+        
+        try:
+            # Truncate message to SMS length
+            truncated_message = message[:max_length]
+            
+            # Send as plain text email to SMS gateway
+            mail_message = Mail(
+                from_email=Email(self.from_email),
+                to_emails=To(self.sms_email),
+                subject="",  # Subject often ignored by SMS gateways
+                plain_text_content=Content("text/plain", truncated_message)
+            )
+            
+            response = self.client.send(mail_message)
+            
+            if response.status_code in [200, 201, 202]:
+                logger.info(f"📱 Sent SMS to {self.sms_phone_number}")
+                return True
+            else:
+                logger.error(f"Failed to send SMS. Status code: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error sending SMS: {e}")
+            return False
+
 

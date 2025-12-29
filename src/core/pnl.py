@@ -323,3 +323,4 @@ class PnLTracker:
         logger.info("\n" + report)
         print(report)
 
+

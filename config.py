@@ -127,6 +127,42 @@ class Config(BaseSettings):
         description="Recipient email address for alerts"
     )
     
+    # SMS Notifications (via email-to-SMS gateway)
+    sms_enabled: bool = Field(
+        default=False,
+        description="Enable SMS notifications via carrier email gateway"
+    )
+    sms_phone_number: str = Field(
+        default="",
+        description="Phone number for SMS (digits only, e.g., 6475173009)"
+    )
+    sms_carrier: str = Field(
+        default="",
+        description="Carrier name (rogers, bell, telus, fido, koodo, freedom)"
+    )
+    
+    # Copy Trading Settings
+    copy_trading_enabled: bool = Field(
+        default=False,
+        description="Enable copy trading from high-accuracy whales"
+    )
+    copy_whale_addresses: str = Field(
+        default="",
+        description="Comma-separated list of whale addresses to copy"
+    )
+    copy_ratio: Decimal = Field(
+        default=Decimal("0.01"),
+        description="Proportion of whale's position to copy (0.01 = 1%)"
+    )
+    max_copy_size: Decimal = Field(
+        default=Decimal("50"),
+        description="Maximum capital per copy trade"
+    )
+    min_whale_accuracy: Decimal = Field(
+        default=Decimal("65"),
+        description="Minimum whale accuracy to copy (%)"
+    )
+    
     @field_validator("min_gross_edge", "min_net_profit", "min_liquidity", 
                      "max_trade_size", "max_daily_loss", "max_open_exposure",
                      "min_apy", "estimated_gas_cost_usd", mode="before")
