@@ -68,4 +68,6 @@ orderbook_snapshots/
 *.backup
 bot.pid
 paper_trades.csv
+copy_trading.log
+nohup.out
 
