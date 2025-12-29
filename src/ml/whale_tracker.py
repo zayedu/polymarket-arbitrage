@@ -172,9 +172,11 @@ class WhaleTracker:
             if not profile:
                 # Create a basic profile with known stats (e.g., for @ilovecircle)
                 logger.warning(f"Could not fetch profile for {address[:8]}..., creating basic profile")
+                # Check if this is @ilovecircle's address
+                username = "@ilovecircle" if address.lower() == "0xa9878e59934ab507f9039bcb917c1bae0451141d" else None
                 profile = WhaleProfile(
                     address=address,
-                    username=None,
+                    username=username,
                     accuracy=Decimal("74"),  # Known from research
                     total_trades=1347,  # Known from research
                     is_alpha=True
@@ -254,12 +256,12 @@ class WhaleTracker:
                         logger.debug(f"Position missing conditionId, skipping")
                         continue
                     
-                    # Determine outcome from asset ID (even = NO, odd = YES)
-                    # Or use a heuristic based on price
-                    asset_id = pos_data.get("asset", "")
-                    avg_price = Decimal(str(pos_data.get("avgPrice", 0.5)))
-                    # If price > 0.5, likely YES; if < 0.5, likely NO
-                    outcome = "YES" if avg_price >= Decimal("0.5") else "NO"
+                    # Get outcome from API (returns "Yes" or "No")
+                    outcome_raw = pos_data.get("outcome", "Yes")
+                    outcome = outcome_raw.upper()  # Convert to "YES" or "NO"
+                    
+                    avg_price = Decimal(str(pos_data.get("avgPrice", 0)))
+                    current_price = Decimal(str(pos_data.get("curPrice", 0)))
                     
                     position = WhalePosition(
                         whale_address=address,
@@ -268,7 +270,7 @@ class WhaleTracker:
                         outcome=outcome,
                         shares=Decimal(str(pos_data.get("size", 0))),
                         avg_price=avg_price,
-                        current_price=Decimal(str(pos_data.get("curPrice", 0))),
+                        current_price=current_price,
                         unrealized_pnl=Decimal(str(pos_data.get("cashPnl", 0))),
                         timestamp=datetime.now(timezone.utc)
                     )

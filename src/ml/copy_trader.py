@@ -51,8 +51,8 @@ class CopyTradeFilter:
         # Copy trading specific settings - VERY PERMISSIVE (copy everything!)
         self.min_whale_accuracy = Decimal("0")  # No minimum (we trust @ilovecircle)
         self.min_whale_trades = 0  # No minimum trade history required
-        self.max_price = Decimal("0.999")  # Accept almost any price (up to 99.9¢)
-        self.min_price = Decimal("0.001")  # Accept almost any price (down to 0.1¢)
+        self.max_price = Decimal("0.9999")  # Accept almost any price (up to 99.99¢)
+        self.min_price = Decimal("0.0001")  # Accept almost any price (down to 0.01¢)
         self.min_liquidity = Decimal("0")  # No minimum liquidity required
         self.max_copy_size = Decimal("50")  # Max $50 per copy trade
         self.copy_ratio = Decimal("0.01")  # Copy 1% of whale's position
@@ -264,12 +264,8 @@ class CopyTrader:
                 
                 logger.info(f"🔍 Evaluating position: {position.outcome} on '{market.title[:50]}' @ ${position.avg_price}")
                 
-                # Get current price
-                from src.core.models import OutcomeType
-                token_id = market.yes_token_id if position.outcome == "YES" else market.no_token_id
-                outcome_type = OutcomeType.YES if position.outcome == "YES" else OutcomeType.NO
-                orderbook = await self.clob.get_orderbook(token_id, outcome_type)
-                current_price = orderbook.best_ask_price if orderbook else position.avg_price
+                # Use current price from position data (more reliable than orderbook)
+                current_price = position.current_price if position.current_price > 0 else position.avg_price
                 
                 # Apply filters
                 should_copy, reasons = self.filter.should_copy(whale, position, market, current_price)
