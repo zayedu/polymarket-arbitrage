@@ -4,7 +4,7 @@ Email and Discord notification module for alerting on arbitrage opportunities.
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Any
 import os
 
 try:
@@ -20,6 +20,8 @@ try:
     DISCORD_AVAILABLE = True
 except ImportError:
     DISCORD_AVAILABLE = False
+    DiscordEmbed = None  # Define as None for type hints
+    DiscordWebhook = None
     logging.warning("Discord webhook not installed. Discord notifications will be disabled. Install with: pip install discord-webhook")
 
 from .models import ArbitrageOpportunity
@@ -657,7 +659,7 @@ class EmailNotifier:
             logger.error(f"Error sending SMS: {e}", exc_info=True)
             return False
     
-    async def send_discord(self, message: str, embed: Optional[DiscordEmbed] = None) -> bool:
+    async def send_discord(self, message: str, embed: Optional[Any] = None) -> bool:
         """
         Send Discord notification via webhook.
         
