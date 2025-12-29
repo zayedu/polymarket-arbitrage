@@ -7,39 +7,41 @@ The bot automatically logs all paper trades to `paper_trades.csv` for easy perfo
 ## CSV File Location
 
 When running locally:
+
 ```
 /path/to/project/paper_trades.csv
 ```
 
 When running on Railway:
+
 ```
 /app/paper_trades.csv
 ```
 
 ## CSV Columns
 
-| Column | Description |
-|--------|-------------|
-| Timestamp | ISO 8601 timestamp (UTC) |
-| Date | YYYY-MM-DD format |
-| Time | HH:MM:SS format |
-| Whale Address | Ethereum address of the whale |
-| Whale Username | Username (e.g., @archaic) |
-| Whale Accuracy | Whale's historical accuracy % |
-| Market ID | Polymarket market/condition ID |
-| Market Title | Full market question |
-| Outcome | YES or NO |
-| Entry Price | Price at entry (0.00-1.00) |
-| Shares | Number of shares |
-| Capital | Total capital allocated ($) |
-| Confidence | Confidence score (0-100) |
-| Reasons | Why the trade was taken |
-| Status | SIMULATED, SKIPPED, or REJECTED |
+| Column          | Description                             |
+| --------------- | --------------------------------------- |
+| Timestamp       | ISO 8601 timestamp (UTC)                |
+| Date            | YYYY-MM-DD format                       |
+| Time            | HH:MM:SS format                         |
+| Whale Address   | Ethereum address of the whale           |
+| Whale Username  | Username (e.g., @archaic)               |
+| Whale Accuracy  | Whale's historical accuracy %           |
+| Market ID       | Polymarket market/condition ID          |
+| Market Title    | Full market question                    |
+| Outcome         | YES or NO                               |
+| Entry Price     | Price at entry (0.00-1.00)              |
+| Shares          | Number of shares                        |
+| Capital         | Total capital allocated ($)             |
+| Confidence      | Confidence score (0-100)                |
+| Reasons         | Why the trade was taken                 |
+| Status          | SIMULATED, SKIPPED, or REJECTED         |
 | Resolution Date | When market resolved (empty if pending) |
-| Final Price | Final price at resolution (0 or 1) |
-| PnL | Profit/Loss in $ |
-| ROI % | Return on investment % |
-| Result | WIN, LOSS, or PENDING |
+| Final Price     | Final price at resolution (0 or 1)      |
+| PnL             | Profit/Loss in $                        |
+| ROI %           | Return on investment %                  |
+| Result          | WIN, LOSS, or PENDING                   |
 
 ## Automatic Logging
 
@@ -55,17 +57,20 @@ Every time the bot processes a signal, it automatically:
 ### Option 1: Railway CLI (Recommended)
 
 Install Railway CLI:
+
 ```bash
 npm install -g @railway/cli
 ```
 
 Login and link project:
+
 ```bash
 railway login
 railway link
 ```
 
 Download the CSV:
+
 ```bash
 railway run cat paper_trades.csv > paper_trades_local.csv
 ```
@@ -73,11 +78,13 @@ railway run cat paper_trades.csv > paper_trades_local.csv
 ### Option 2: Railway Logs
 
 View recent trades in logs:
+
 ```
 Railway Dashboard → Deployments → Logs
 ```
 
 Look for:
+
 ```
 📝 Logged SIMULATED trade: Market Name - $25.00
 ```
@@ -85,6 +92,7 @@ Look for:
 ### Option 3: Add Volume Mount (Advanced)
 
 In Railway dashboard:
+
 1. Go to Settings → Volumes
 2. Add volume: `/app/data`
 3. Update code to save CSV to `/app/data/paper_trades.csv`
@@ -158,6 +166,7 @@ When a market resolves, you can manually update the CSV:
 ### Automated Tracking (Future)
 
 In the future, the bot could automatically:
+
 - Monitor market resolutions
 - Update CSV with results
 - Calculate P&L automatically
@@ -177,6 +186,7 @@ Timestamp,Date,Time,Whale Address,Whale Username,Whale Accuracy,Market ID,Market
 The CSV makes it easy to track:
 
 ### Daily Capital Allocation
+
 ```sql
 SELECT Date, SUM(Capital) as Daily_Capital
 FROM paper_trades
@@ -185,6 +195,7 @@ GROUP BY Date
 ```
 
 ### Capital by Whale
+
 ```sql
 SELECT Whale_Username, SUM(Capital) as Total_Capital, COUNT(*) as Trades
 FROM paper_trades
@@ -194,9 +205,10 @@ ORDER BY Total_Capital DESC
 ```
 
 ### Win Rate by Confidence Range
+
 ```sql
-SELECT 
-  CASE 
+SELECT
+  CASE
     WHEN Confidence >= 90 THEN '90-100%'
     WHEN Confidence >= 80 THEN '80-89%'
     WHEN Confidence >= 70 THEN '70-79%'
@@ -240,4 +252,3 @@ After 2-4 weeks of paper trading:
 3. **Decide if ready for live trading**
 4. **If yes, start with small positions ($5-10)**
 5. **Continue tracking in CSV**
-
