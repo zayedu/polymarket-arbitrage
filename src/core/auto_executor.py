@@ -271,3 +271,4 @@ class AutoExecutor:
             "executed_trades_count": len(self.executed_trades)
         }
 
+

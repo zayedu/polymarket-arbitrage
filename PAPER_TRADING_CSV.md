@@ -252,3 +252,4 @@ After 2-4 weeks of paper trading:
 3. **Decide if ready for live trading**
 4. **If yes, start with small positions ($5-10)**
 5. **Continue tracking in CSV**
+

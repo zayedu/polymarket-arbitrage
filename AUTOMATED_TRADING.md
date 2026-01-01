@@ -364,3 +364,4 @@ For issues or questions:
 
 The automated trading system is a tool to assist decision-making, not a guarantee of profits.
 
+
